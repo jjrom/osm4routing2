@@ -1,3 +1,6 @@
 target
 Cargo.lock
 data
+edges.csv
+nodes.csv
+*.pbf

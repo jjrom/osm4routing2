@@ -40,8 +40,7 @@ pub struct EdgeProperties {
     pub car_backward: i8,
     pub bike_forward: i8,
     pub bike_backward: i8,
-    pub car_forward_speed_limit: i32,
-    pub car_backward_speed_limit: i32,
+    pub speed_limit: i32,
 }
 
 impl EdgeProperties {
@@ -52,8 +51,7 @@ impl EdgeProperties {
             car_backward: UNKNOWN,
             bike_forward: UNKNOWN,
             bike_backward: UNKNOWN,
-            car_forward_speed_limit: UNKNOWN,
-            car_backward_speed_limit: UNKNOWN
+            speed_limit: -1,
         }
     }
 
@@ -175,10 +173,25 @@ impl EdgeProperties {
                 }
             },
             "maxspeed" => {
-                self.car_forward_speed_limit = maxspeed_to_kmph(&val);
+                self.speed_limit = self.maxspeed_to_kmph(&val);
             }
             _ => {}
         }
+    }
+
+    /**
+     * Convert an OSM speed in <countrycode>:<zone type> format to integer speed
+     */
+    pub fn cczone_to_speed(&mut self, val: &str) -> i32 {
+
+        match val.to_ascii_uppercase().as_ref() {
+            "FR:RURAL" => 80,
+            "FR:URBAN" => 50,
+            "FR:ZONE30" => 30,
+            "FR:WALK" => 5,
+            _ => -1
+        }
+
     }
 
     /**
@@ -191,7 +204,7 @@ impl EdgeProperties {
      *   - maxspeed=walk
      *   - maxspeed=<countrycode>:<zone type>
      */
-    pub fn maxspeed_to_kmph(&mut self, val: &str) {
+    pub fn maxspeed_to_kmph(&mut self, val: &str) -> i32 {
 
         let mut maxspeed: i32 = 0;
 
@@ -199,35 +212,55 @@ impl EdgeProperties {
         let mut multiplier: f32 = 1.0;
 
         // First split into speed and unit
-        let vec = val.collect::<Vec<&str>>();
-        if (vec.len() == 2) {
+        let vec: Vec<&str> = val.trim().split(' ').collect();
 
-            match val {
-                "knots" => {
-                    multiplier = 1.852;
-                },
-                "mph" => {
-                    multiplier = 1.60934;
-                },
-                _ => {
-                    multiplier = 1.0;
+        for (i, value) in vec.iter().enumerate() {
+            
+            if i == 0 {
+
+                match value.as_ref() {
+                    "none" => {
+                        maxspeed = 0;
+                    },
+                    "walk" => {
+                        maxspeed = 5;
+                    }
+                    _ => {
+
+                        maxspeed = match value.parse::<i32>() {
+
+                            // Integer
+                            Ok(i) => i,
+
+                            // Not an integer - should be // <countrycode>:<zone type>
+                            Err(_e) => {
+                                self.cczone_to_speed(&value)
+                            }
+                        };
+                    }
                 }
+
             }
+
+            if i == 1 {
+
+                match value.as_ref() {
+                    "knots" => {
+                        multiplier = 1.852;
+                    },
+                    "mph" => {
+                        multiplier = 1.60934;
+                    },
+                    _ => {
+                        multiplier = 1.0;
+                    }
+                }
+
+            }
+
         }
 
-        match vec[0] {
-            "none" => {
-                maxspeed = 0;
-            },
-            "walk" => {
-                maxspeed = 5;
-            }
-            _ => {
-
-            }
-        }
-
-        maxspeed * multiplier
+        ((maxspeed as f32) * multiplier) as i32
 
     }
 }
