@@ -40,6 +40,8 @@ pub struct EdgeProperties {
     pub car_backward: i8,
     pub bike_forward: i8,
     pub bike_backward: i8,
+    pub car_forward_speed_limit: i32,
+    pub car_backward_speed_limit: i32,
 }
 
 impl EdgeProperties {
@@ -50,6 +52,8 @@ impl EdgeProperties {
             car_backward: UNKNOWN,
             bike_forward: UNKNOWN,
             bike_backward: UNKNOWN,
+            car_forward_speed_limit: UNKNOWN,
+            car_backward_speed_limit: UNKNOWN
         }
     }
 
@@ -72,9 +76,6 @@ impl EdgeProperties {
         }
         if self.bike_backward == UNKNOWN {
             self.bike_backward = BIKE_FORBIDDEN;
-        }
-        if self.foot == UNKNOWN {
-            self.foot = FOOT_FORBIDDEN;
         }
     }
 
@@ -172,9 +173,62 @@ impl EdgeProperties {
                         self.bike_backward = BIKE_FORBIDDEN;
                     }
                 }
+            },
+            "maxspeed" => {
+                self.car_forward_speed_limit = maxspeed_to_kmph(&val);
             }
             _ => {}
         }
+    }
+
+    /**
+     * Convert an OSM maxspeed of source:maxspeed tag value (string) to a km/h value (i8)
+     * The allowed format for input val (see https://wiki.openstreetmap.org/wiki/Key:maxspeed)
+     *   - maxspeed=60
+     *   - maxspeed=50 mph
+     *   - maxspeed=10 knots
+     *   - maxspeed=none
+     *   - maxspeed=walk
+     *   - maxspeed=<countrycode>:<zone type>
+     */
+    pub fn maxspeed_to_kmph(&mut self, val: &str) {
+
+        let mut maxspeed: i32 = 0;
+
+        // Speed mulitplier to convert in km/h
+        let mut multiplier: f32 = 1.0;
+
+        // First split into speed and unit
+        let vec = val.collect::<Vec<&str>>();
+        if (vec.len() == 2) {
+
+            match val {
+                "knots" => {
+                    multiplier = 1.852;
+                },
+                "mph" => {
+                    multiplier = 1.60934;
+                },
+                _ => {
+                    multiplier = 1.0;
+                }
+            }
+        }
+
+        match vec[0] {
+            "none" => {
+                maxspeed = 0;
+            },
+            "walk" => {
+                maxspeed = 5;
+            }
+            _ => {
+
+            }
+        }
+
+        maxspeed * multiplier
+
     }
 }
 
