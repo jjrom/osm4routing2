@@ -15,3 +15,4 @@ wget http://download.geofabrik.de/europe/andorra-latest.osm.pbf -O andorra-lates
 
 
 curl https://www.openstreetmap.org/api/0.6/way/6165944
+

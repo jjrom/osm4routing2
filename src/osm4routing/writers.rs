@@ -4,7 +4,8 @@ use std;
 
 pub fn csv(nodes: Vec<Node>, edges: Vec<Edge>) {
     let edges_path = std::path::Path::new("edges.csv");
-    let mut edges_csv = csv::Writer::from_path(edges_path).unwrap();
+    //let mut edges_csv = csv::Writer::from_path(edges_path).unwrap();
+    let mut edges_csv = csv::WriterBuilder::new().delimiter(b'|').from_path(edges_path).unwrap();
     edges_csv
         .serialize(vec![
             "id",
@@ -39,7 +40,8 @@ pub fn csv(nodes: Vec<Node>, edges: Vec<Edge>) {
     }
 
     let nodes_path = std::path::Path::new("nodes.csv");
-    let mut nodes_csv = csv::Writer::from_path(nodes_path).unwrap();
+    //let mut nodes_csv = csv::Writer::from_path(nodes_path).unwrap();
+    let mut nodes_csv = csv::WriterBuilder::new().delimiter(b'|').from_path(nodes_path).unwrap();
     nodes_csv
         .serialize(vec!["id", "lon", "lat"])
         .expect("CSV: unable to write node header");
