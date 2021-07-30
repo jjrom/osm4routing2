@@ -32,6 +32,11 @@ const BIKE_BUSWAY: i8 = 4;
 // BIKE_TRACK is a physically separated for any other traffic
 const BIKE_TRACK: i8 = 5;
 
+const IN_NO_DIRECTION: i8 = 0;
+const IN_BOTH_DIRECTIONS: i8 = 1;
+const IN_POSITIVE_DIRECTION: i8 = 2;
+const IN_NEGATIVE_DIRECTION: i8 = 3;
+
 // Edgeself contains what mode can use the edge in each direction
 #[derive(Clone, Copy, Default)]
 pub struct EdgeProperties {
@@ -40,7 +45,10 @@ pub struct EdgeProperties {
     pub car_backward: i8,
     pub bike_forward: i8,
     pub bike_backward: i8,
-    pub speed_limit: i32,
+    pub maxspeed: i32,
+    pub positive_speedlimit: i32,
+    pub negative_speedlimit: i32,
+    pub direction: i8,
 }
 
 impl EdgeProperties {
@@ -51,12 +59,19 @@ impl EdgeProperties {
             car_backward: UNKNOWN,
             bike_forward: UNKNOWN,
             bike_backward: UNKNOWN,
-            speed_limit: -1,
+            maxspeed: -1,
+            positive_speedlimit:-1,
+            negative_speedlimit:-1,
+            direction: IN_BOTH_DIRECTIONS,
         }
     }
 
     // Normalize fills UNKNOWN fields
     pub fn normalize(&mut self) {
+
+        // Speed limits for France see https://wiki.openstreetmap.org/wiki/OSM_tags_for_routing/Maxspeed#France
+        let speedlimits: [i32;7] = [-1, 50, 90, 90, 90, 110, 130];
+
         if self.car_backward == UNKNOWN {
             self.car_backward = self.car_forward;
         }
@@ -75,15 +90,57 @@ impl EdgeProperties {
         if self.bike_backward == UNKNOWN {
             self.bike_backward = BIKE_FORBIDDEN;
         }
+
+        // Compute car positive_speedlimit
+        if self.car_forward != 0 {
+            if self.maxspeed != -1 {
+                self.positive_speedlimit = self.maxspeed;
+            }
+            else {
+                self.positive_speedlimit = speedlimits[self.car_forward as usize];
+            }
+        }
+
+        // Compute car negative_speedlimit
+        if self.car_backward != 0 {
+            if self.maxspeed != -1 {
+                self.negative_speedlimit = self.maxspeed;
+            }
+            else {
+                self.negative_speedlimit = speedlimits[self.car_backward as usize];
+            }
+        }
+        
+        // Direction
+        if self.car_forward == CAR_FORBIDDEN && self.car_backward == CAR_FORBIDDEN {
+            self.direction = IN_NO_DIRECTION;
+        }
+        else if self.car_forward != CAR_FORBIDDEN && self.car_backward == CAR_FORBIDDEN {
+            self.direction = IN_POSITIVE_DIRECTION;
+        }
+        else if self.car_forward == CAR_FORBIDDEN && self.car_backward != CAR_FORBIDDEN {
+            self.direction = IN_NEGATIVE_DIRECTION;
+        }
+        else {
+            self.direction = IN_BOTH_DIRECTIONS;
+        }
     }
 
     // Accessible means that at least one mean of transportation can use it in one direction
-    pub fn accessible(self) -> bool {
-        self.bike_forward != BIKE_FORBIDDEN
+    // If car_only is set to true then returns only valid roads for car
+    pub fn accessible(self, car_only: bool) -> bool {
+
+        if car_only == true {
+            !(self.car_forward == CAR_FORBIDDEN && self.car_backward == CAR_FORBIDDEN)
+        }
+        else {
+            self.bike_forward != BIKE_FORBIDDEN
             || self.bike_backward != BIKE_FORBIDDEN
             || self.car_forward != CAR_FORBIDDEN
             || self.car_backward != CAR_FORBIDDEN
             || self.foot != FOOT_FORBIDDEN
+        }
+        
     }
 
     pub fn update(&mut self, key_string: String, val_string: String) {
@@ -173,7 +230,7 @@ impl EdgeProperties {
                 }
             },
             "maxspeed" => {
-                self.speed_limit = self.maxspeed_to_kmph(&val);
+                self.maxspeed = self.maxspeed_to_kmph(&val);
             }
             _ => {}
         }
@@ -189,7 +246,10 @@ impl EdgeProperties {
             "FR:URBAN" => 50,
             "FR:ZONE30" => 30,
             "FR:WALK" => 5,
-            _ => -1
+            _ => {
+                println!("Unknown - val={}", &val);
+                -1
+            }
         }
 
     }
@@ -204,7 +264,7 @@ impl EdgeProperties {
      *   - maxspeed=walk
      *   - maxspeed=<countrycode>:<zone type>
      */
-    pub fn maxspeed_to_kmph(&mut self, val: &str) -> i32 {
+    pub fn maxspeed_to_kmph(&mut self,val: &str) -> i32 {
 
         let mut maxspeed: i32 = 0;
 

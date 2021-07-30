@@ -17,11 +17,19 @@ pub fn csv(nodes: Vec<Node>, edges: Vec<Edge>) {
             "car_backward",
             "bike_forward",
             "bike_backward",
+            "positive_speedlimit",
+            "negative_speedlimit",
+            "direction",
             "wkt",
-            "speed_limit",
         ])
         .expect("CSV: unable to write edge header");
     for edge in edges {
+
+        // Discard non car roads
+        if edge.properties.car_forward == 0 && edge.properties.car_backward == 0 {
+            continue;
+        }
+
         edges_csv
             .serialize((
                 edge.id.0,
@@ -33,8 +41,10 @@ pub fn csv(nodes: Vec<Node>, edges: Vec<Edge>) {
                 edge.properties.car_backward,
                 edge.properties.bike_forward,
                 edge.properties.bike_backward,
+                edge.properties.positive_speedlimit,
+                edge.properties.negative_speedlimit,
+                edge.properties.direction,
                 edge.as_wkt(),
-                edge.properties.speed_limit,
             ))
             .expect("CSV: unable to write edge");
     }

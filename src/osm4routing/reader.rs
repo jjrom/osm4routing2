@@ -75,6 +75,7 @@ impl Reader {
 
     fn read_ways(&mut self, file: std::fs::File) {
         let mut pbf = osmpbfreader::OsmPbfReader::new(file);
+        let car_only: bool = true;
         for obj in pbf.iter() {
             if let Ok(osmpbfreader::OsmObj::Way(way)) = obj {
                 let mut properties = EdgeProperties::default();
@@ -82,7 +83,7 @@ impl Reader {
                     properties.update(key.to_string(), val.to_string());
                 }
                 properties.normalize();
-                if properties.accessible() {
+                if properties.accessible(car_only) {
                     for node in &way.nodes {
                         self.nodes_to_keep.insert(*node);
                     }
