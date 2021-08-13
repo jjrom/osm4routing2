@@ -280,7 +280,7 @@ impl EdgeProperties {
 
                 match value.as_ref() {
                     "none" => {
-                        maxspeed = 0;
+                        maxspeed = -99;
                     },
                     "walk" => {
                         maxspeed = 5;
